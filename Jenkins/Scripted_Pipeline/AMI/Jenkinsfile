@@ -1,5 +1,5 @@
 node {
-    def REPO_URL      = 'https://github.com/your-org/your-repo.git'
+    def REPO_URL      = 'https://github.com/abhinav450718/AMI.git'
     def BRANCH        = 'main'
     def SLACK_CHANNEL = '#ci-operation-notifications'
     def AWS_REGION    = 'us-east-1'
@@ -38,13 +38,12 @@ node {
                     export AWS_ACCESS_KEY_ID=\$AWS_ACCESS_KEY_ID
                     export AWS_SECRET_ACCESS_KEY=\$AWS_SECRET_ACCESS_KEY
 
-                    packer build \
-                        -var 'aws_region=${AWS_REGION}' \
-                        -var 'ami_name=${AMI_NAME}' \
+                    packer build \\
+                        -var 'aws_region=${AWS_REGION}' \\
+                        -var 'ami_name=${AMI_NAME}' \\
                         packer/ami.pkr.hcl | tee packer-output.log
 
                     grep 'AMI:' packer-output.log | awk '{print \$NF}' > ami-id.txt
-                    echo "Built AMI ID: \$(cat ami-id.txt)"
                 """
             }
             env.AMI_ID = sh(script: 'cat ami-id.txt', returnStdout: true).trim()
@@ -54,16 +53,29 @@ node {
             archiveArtifacts artifacts: 'packer-output.log, ami-id.txt', allowEmptyArchive: true
         }
 
+        currentBuild.result = 'SUCCESS'
+
     } catch (Exception err) {
         currentBuild.result = 'FAILURE'
         throw err
+
     } finally {
         stage('Post Actions') {
-            if (currentBuild.result == 'FAILURE') {
+            def status = currentBuild.result ?: 'FAILURE'
+
+            def colorMap = [
+                'SUCCESS' : 'good',
+                'UNSTABLE': 'warning',
+                'FAILURE' : 'danger'
+            ]
+
+            def color = colorMap.get(status, 'danger')
+
+            if (status == 'FAILURE') {
                 slackSend(
                     channel: SLACK_CHANNEL,
-                    color: 'danger',
-                    message: "*FAILED* - AMI Build\n" +
+                    color  : color,
+                    message: "*${status}* - AMI Build\n" +
                              "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
                              "*Job Name:*       " + env.JOB_NAME + "\n" +
                              "*Build Number:*   #" + env.BUILD_NUMBER + "\n" +
@@ -75,8 +87,8 @@ node {
             } else {
                 slackSend(
                     channel: SLACK_CHANNEL,
-                    color: 'good',
-                    message: "*SUCCESS* - AMI Build\n" +
+                    color  : color,
+                    message: "*${status}* - AMI Build\n" +
                              "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
                              "*Job Name:*       " + env.JOB_NAME + "\n" +
                              "*Build Number:*   #" + env.BUILD_NUMBER + "\n" +
