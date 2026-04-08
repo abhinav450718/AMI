@@ -4,11 +4,20 @@ set -e
 apt-get update -y
 apt-get upgrade -y
 
-# Install whatever your app needs
-apt-get install -y curl git unzip
+apt-get install -y \
+    curl \
+    git \
+    unzip \
+    wget \
+    vim \
+    htop \
+    net-tools
 
-# Example: install Node
 curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
 apt-get install -y nodejs
 
-echo "AMI setup complete"
+node -v
+npm -v
+
+apt-get clean
+rm -rf /var/lib/apt/lists/*
