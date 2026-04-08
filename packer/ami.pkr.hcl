@@ -35,7 +35,7 @@ source "amazon-ebs" "app_ami" {
       virtualization-type = "hvm"
     }
     most_recent = true
-    owners      = ["099720109477"]   # Canonical (Ubuntu)
+    owners      = ["099720109477"]
   }
 
   ssh_username = "ubuntu"
@@ -44,6 +44,7 @@ source "amazon-ebs" "app_ami" {
     Name        = var.ami_name
     BuildBy     = "Packer"
     Environment = "CI"
+    BuildDate   = formatdate("YYYY-MM-DD", timestamp())
   }
 }
 
