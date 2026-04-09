@@ -1,7 +1,6 @@
 node {
     def REPO_URL      = 'https://github.com/abhinav450718/AMI.git'
     def BRANCH        = 'main'
-    def SLACK_CHANNEL = '#ci-operation-notifications'
     def AWS_REGION    = 'us-east-1'
     def AMI_NAME      = 'my-app-ami'
 
@@ -61,44 +60,11 @@ node {
 
     } finally {
         stage('Post Actions') {
-            def status = currentBuild.result ?: 'FAILURE'
-
-            def colorMap = [
-                'SUCCESS' : 'good',
-                'UNSTABLE': 'warning',
-                'FAILURE' : 'danger'
-            ]
-
-            def color = colorMap.get(status, 'danger')
-
-            if (status == 'FAILURE') {
-                slackSend(
-                    channel: SLACK_CHANNEL,
-                    color  : color,
-                    message: "*${status}* - AMI Build\n" +
-                             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                             "*Job Name:*       " + env.JOB_NAME + "\n" +
-                             "*Build Number:*   #" + env.BUILD_NUMBER + "\n" +
-                             "*Branch:*         " + BRANCH + "\n" +
-                             "*Status:*         AMI Build Failed\n" +
-                             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                             "<" + env.BUILD_URL + "|View Build>"
-                )
+            echo "Build Status: ${currentBuild.result}"
+            if (currentBuild.result == 'SUCCESS') {
+                echo "AMI Created Successfully: ${env.AMI_ID}"
             } else {
-                slackSend(
-                    channel: SLACK_CHANNEL,
-                    color  : color,
-                    message: "*${status}* - AMI Build\n" +
-                             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                             "*Job Name:*       " + env.JOB_NAME + "\n" +
-                             "*Build Number:*   #" + env.BUILD_NUMBER + "\n" +
-                             "*Branch:*         " + BRANCH + "\n" +
-                             "*AMI ID:*         " + env.AMI_ID + "\n" +
-                             "*Status:*         AMI Created Successfully\n" +
-                             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                             "<" + env.BUILD_URL + "|View Build>   |   " +
-                             "<" + env.BUILD_URL + "artifact/packer-output.log|Packer Log>"
-                )
+                echo "AMI Build Failed"
             }
             cleanWs()
         }
