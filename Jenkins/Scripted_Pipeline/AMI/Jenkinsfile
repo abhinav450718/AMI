@@ -1,8 +1,8 @@
 node {
-    def REPO_URL      = 'https://github.com/abhinav450718/AMI.git'
-    def BRANCH        = 'main'
-    def AWS_REGION    = 'us-east-1'
-    def AMI_NAME      = 'my-app-ami'
+    def REPO_URL   = 'https://github.com/abhinav450718/AMI.git'
+    def BRANCH     = 'main'
+    def AWS_REGION = 'us-east-1'
+    def AMI_NAME   = 'my-app-ami'
 
     try {
 
@@ -15,13 +15,11 @@ node {
         }
 
         stage('Validate Packer Template') {
-            withCredentials([
-                string(credentialsId: 'AWS_ACCESS_KEY_ID',     variable: 'AWS_ACCESS_KEY_ID'),
-                string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-            ]) {
+            withCredentials([[
+                $class: 'AmazonWebServicesCredentialsBinding',
+                credentialsId: 'aws-creds'
+            ]]) {
                 sh '''
-                    export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                    export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
                     packer init packer/ami.pkr.hcl
                     packer validate packer/ami.pkr.hcl
                 '''
@@ -29,22 +27,20 @@ node {
         }
 
         stage('Build AMI') {
-            withCredentials([
-                string(credentialsId: 'AWS_ACCESS_KEY_ID',     variable: 'AWS_ACCESS_KEY_ID'),
-                string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-            ]) {
+            withCredentials([[
+                $class: 'AmazonWebServicesCredentialsBinding',
+                credentialsId: 'aws-creds'
+            ]]) {
                 sh """
-                    export AWS_ACCESS_KEY_ID=\$AWS_ACCESS_KEY_ID
-                    export AWS_SECRET_ACCESS_KEY=\$AWS_SECRET_ACCESS_KEY
-
                     packer build \\
                         -var 'aws_region=${AWS_REGION}' \\
                         -var 'ami_name=${AMI_NAME}' \\
                         packer/ami.pkr.hcl | tee packer-output.log
 
-                    grep 'AMI:' packer-output.log | awk '{print \$NF}' > ami-id.txt
+                    grep -i 'ami-' packer-output.log | tail -1 | awk '{print \$NF}' > ami-id.txt
                 """
             }
+
             env.AMI_ID = sh(script: 'cat ami-id.txt', returnStdout: true).trim()
         }
 
@@ -61,11 +57,13 @@ node {
     } finally {
         stage('Post Actions') {
             echo "Build Status: ${currentBuild.result}"
+
             if (currentBuild.result == 'SUCCESS') {
-                echo "AMI Created Successfully: ${env.AMI_ID}"
+                echo "✅ AMI Created Successfully: ${env.AMI_ID}"
             } else {
-                echo "AMI Build Failed"
+                echo "❌ AMI Build Failed"
             }
+
             cleanWs()
         }
     }
